@@ -22,7 +22,7 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Printf("Open Notebook v%s\n", Version)
+		fmt.Printf("Notex v%s\n", Version)
 		fmt.Println("A privacy-first, open-source alternative to NotebookLM")
 		fmt.Println("Powered by LangGraphGo")
 		os.Exit(0)
@@ -69,7 +69,7 @@ func runServerMode(cfg backend.Config) {
 
 	fmt.Printf("\n")
 	fmt.Println("╔═══════════════════════════════════════════════════════════╗")
-	fmt.Println("║           📓 Open Notebook - LangGraphGo Edition          ║")
+	fmt.Println("║                 📓 Notex - LangGraphGo Edition            ║")
 	fmt.Println("╚═══════════════════════════════════════════════════════════╝")
 	fmt.Printf("\n")
 	fmt.Printf("Version:     %s\n", Version)
@@ -159,7 +159,7 @@ func runIngestMode(ctx context.Context, cfg backend.Config, filePath, notebookNa
 }
 
 func printUsage() {
-	fmt.Println("Open Notebook - Privacy-first AI notebook")
+	fmt.Println("Notex - Privacy-first AI notebook")
 	fmt.Println("\nUsage:")
 	fmt.Println("  open-notebook [options]")
 	fmt.Println("\nOptions:")

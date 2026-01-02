@@ -1,4 +1,4 @@
-# Notex - Open Notebook
+# Notex
 
 <div align="center">
 

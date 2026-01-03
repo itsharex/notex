@@ -1289,16 +1289,21 @@ body {
 
 .mermaid-diagram {
     display: flex;
-    justify-content: center;
-    margin: 2em 0;
-    padding: var(--space-lg);
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin: 1.5em 0;
+    padding: var(--space-md);
     background: #ffffff;
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
-    overflow-x: auto;
+    overflow: auto;
+    max-height: 85vh;
+    box-sizing: border-box;
 }
 
 .mermaid-diagram svg {
+    display: block;
     max-width: 100%;
     height: auto;
 }
@@ -2359,8 +2364,7 @@ body {
 }
 
 .markdown-content {
-    max-width: 900px;
-    margin: 0 auto;
+    width: 100%;
 }
 
 .note-view-title {

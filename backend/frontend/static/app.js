@@ -698,10 +698,29 @@ class OpenNotebook {
             try {
                 mermaid.initialize({ 
                     startOnLoad: false, 
-                    theme: 'default',
+                    theme: 'base',
                     securityLevel: 'loose',
                     fontFamily: 'var(--font-sans)',
-                    mindmap: { useMaxWidth: true }
+                    themeVariables: {
+                        // Vibrant WeChat Green Theme
+                        primaryColor: '#ecfdf5', // Lighter, more vibrant green background
+                        primaryTextColor: '#065f46', // Deep emerald for text
+                        primaryBorderColor: '#10b981', // Bright emerald border
+                        lineColor: '#10b981', // Bright line color
+                        secondaryColor: '#f0fdf4',
+                        tertiaryColor: '#ffffff',
+                        fontSize: '14px',
+                        mainBkg: '#ecfdf5',
+                        nodeBorder: '#10b981',
+                        clusterBkg: '#f0fdf4',
+                        // Mindmap specific vibrancy
+                        nodeTextColor: '#065f46',
+                        edgeColor: '#34d399' // Slightly lighter green for edges
+                    },
+                    mindmap: {
+                        useMaxWidth: true,
+                        padding: 20
+                    }
                 });
                 
                 const contentArea = document.querySelector('.note-view-content');

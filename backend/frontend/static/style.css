@@ -818,12 +818,8 @@ body {
     background: transparent;
     border: none;
     cursor: pointer;
-    opacity: 0;
-    transition: all var(--transition-fast);
-}
-
-.notebook-item:hover .btn-delete-notebook {
     opacity: 1;
+    transition: all var(--transition-fast);
 }
 
 .btn-delete-notebook:hover {
@@ -932,12 +928,8 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    opacity: 0;
-    transition: all var(--transition-fast);
-}
-
-.source-card:hover .btn-remove-source {
     opacity: 1;
+    transition: all var(--transition-fast);
 }
 
 .btn-remove-source:hover {
@@ -1039,6 +1031,27 @@ body {
     gap: 8px;
     position: relative;
     border-left: 4px solid var(--accent-primary);
+}
+
+.btn-delete-compact-note {
+    position: absolute;
+    top: var(--space-sm);
+    right: var(--space-sm);
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-light);
+    cursor: pointer;
+    opacity: 1;
+    transition: all var(--transition-fast);
+    border-radius: var(--radius-full);
+}
+
+.btn-delete-compact-note:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--accent-red);
 }
 
 .compact-note-card:hover {
@@ -1304,15 +1317,7 @@ body {
 }
 
 .note-type-badge {
-    position: absolute;
-    top: var(--space-sm);
-    right: var(--space-sm);
-    font-family: var(--font-display);
-    font-size: 0.5rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    color: var(--ink-muted);
-    text-transform: uppercase;
+    display: none;
 }
 
 .note-title {
@@ -1321,7 +1326,6 @@ body {
     font-weight: 600;
     color: var(--ink-primary);
     margin-bottom: var(--space-sm);
-    padding-right: 60px;
 }
 
 .note-preview {
@@ -1626,12 +1630,8 @@ body {
     background: transparent;
     border: none;
     cursor: pointer;
-    opacity: 0;
-    transition: all var(--transition-fast);
-}
-
-.note-item:hover .btn-delete-note {
     opacity: 1;
+    transition: all var(--transition-fast);
 }
 
 .btn-delete-note:hover {
@@ -2495,10 +2495,6 @@ body {
     cursor: pointer;
     border-radius: var(--radius-full);
     transition: all var(--transition-fast);
-    opacity: 0;
-}
-
-.notebook-card:hover .btn-delete-card {
     opacity: 1;
 }
 

@@ -39,7 +39,10 @@ class OpenNotebook {
     async loadConfig() {
         try {
             const config = await this.api('/config');
-            this.config = config;
+            // Convert snake_case to camelCase
+            this.config = {
+                allowDelete: config.allow_delete !== undefined ? config.allow_delete : true
+            };
         } catch (error) {
             console.error('Failed to load config:', error);
         }
@@ -47,10 +50,11 @@ class OpenNotebook {
 
     applyConfig() {
         // Show/hide delete buttons based on allowDelete config
-        const deleteButtons = document.querySelectorAll('.btn-delete, .btn-remove-source, .btn-delete-note, .btn-delete-card, .btn-delete-notebook');
+        const deleteButtons = document.querySelectorAll('.btn-delete, .btn-remove-source, .btn-delete-note, .btn-delete-card, .btn-delete-notebook, .btn-delete-compact-note');
         deleteButtons.forEach(btn => {
             if (this.config.allowDelete) {
                 btn.style.display = '';
+                btn.style.opacity = '1';
             } else {
                 btn.style.display = 'none';
             }
@@ -294,7 +298,9 @@ class OpenNotebook {
             });
 
             // Apply config to delete button
-            if (!this.config.allowDelete) {
+            if (this.config.allowDelete) {
+                deleteCardBtn.style.display = 'flex';
+            } else {
                 deleteCardBtn.style.display = 'none';
             }
 
@@ -418,7 +424,7 @@ class OpenNotebook {
 
     async renderNotesCompactGrid() {
         if (!this.currentNotebook) return;
-        
+
         const container = document.querySelector('.notes-compact-grid');
         if (!container) return;
 
@@ -429,7 +435,7 @@ class OpenNotebook {
             notes.forEach(note => {
                 const card = document.createElement('div');
                 card.className = 'compact-note-card';
-                
+
                 const plainText = note.content
                     .replace(/^#+\s+/gm, '')
                     .replace(/\*\*/g, '')
@@ -439,6 +445,14 @@ class OpenNotebook {
                     .trim();
 
                 card.innerHTML = `
+                    <button class="btn-delete-compact-note" title="删除笔记">
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polyline points="4,3 4,2 10,2 10,3"/>
+                            <line x1="2" y1="4" x2="12" y2="4"/>
+                            <line x1="5" y1="7" x2="5" y2="11"/>
+                            <line x1="9" y1="7" x2="9" y2="11"/>
+                        </svg>
+                    </button>
                     <div class="note-type">${note.type}</div>
                     <h4 class="note-title">${note.title}</h4>
                     <p class="note-preview">${plainText}</p>
@@ -447,6 +461,22 @@ class OpenNotebook {
                         <span>${note.source_ids?.length || 0} 来源</span>
                     </div>
                 `;
+
+                // Delete button event
+                const deleteBtn = card.querySelector('.btn-delete-compact-note');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (confirm('确定要删除此笔记吗？')) {
+                        this.deleteNote(note.id);
+                    }
+                });
+
+                // Apply config to delete button
+                if (this.config.allowDelete) {
+                    deleteBtn.style.display = 'flex';
+                } else {
+                    deleteBtn.style.display = 'none';
+                }
 
                 card.addEventListener('click', () => this.viewNote(note));
                 container.appendChild(card);
@@ -607,7 +637,9 @@ class OpenNotebook {
                 });
 
                 // Apply config to delete button
-                if (!this.config.allowDelete) {
+                if (this.config.allowDelete) {
+                    removeBtn.style.display = 'flex';
+                } else {
                     removeBtn.style.display = 'none';
                 }
 
@@ -812,7 +844,9 @@ class OpenNotebook {
                 });
 
                 // Apply config to delete button
-                if (!this.config.allowDelete) {
+                if (this.config.allowDelete) {
+                    deleteBtn.style.display = 'flex';
+                } else {
                     deleteBtn.style.display = 'none';
                 }
 

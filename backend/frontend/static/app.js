@@ -971,25 +971,58 @@ class OpenNotebook {
                 // Helper to fix common mermaid errors
                 const sanitizeMermaid = (code) => {
                     let sanitized = code.trim();
-                    
+
                     // 1. If it's a graph and has unquoted brackets, try to wrap them
                     if (sanitized.startsWith('graph')) {
                         // Fix things like: A --> socket() --> B
                         sanitized = sanitized.replace(/(\s+)-->(\s+)([^"\s][^-\n>]*\([^)]*\)[^-\n>]*)/g, '$1-->$2"$3"');
                         sanitized = sanitized.replace(/([^"\s][^-\n>]*\([^)]*\)[^-\n>]*)\s+-->/g, '"$1" -->');
                     }
-                    
-                    // 2. Fix mindmap roots if missing double parens
+
+                    // 2. Fix mindmap - handle special characters in node labels
                     if (sanitized.startsWith('mindmap')) {
                         const lines = sanitized.split('\n');
+                        const processedLines = [];
+
                         for (let i = 0; i < lines.length; i++) {
-                            if (lines[i].trim().startsWith('root') && !lines[i].includes('((')) {
-                                lines[i] = lines[i].replace(/root\s+(.+)/, 'root(($1))');
+                            let line = lines[i];
+                            const trimmed = line.trim();
+
+                            // Skip empty lines and the mindmap declaration
+                            if (!trimmed || trimmed === 'mindmap') {
+                                processedLines.push(line);
+                                continue;
+                            }
+
+                            // Fix root if missing double parens
+                            if (trimmed.startsWith('root') && !line.includes('((')) {
+                                line = line.replace(/root\s+(.+)/, 'root(($1))');
+                                processedLines.push(line);
+                                continue;
+                            }
+
+                            // For other nodes, check if they contain special characters that need quoting
+                            // Special chars: parentheses, brackets, braces, quotes, colons, semicolons
+                            const hasSpecialChars = /[\(\)\[\]\{\}"':;,\s]{2,}/.test(trimmed);
+                            const alreadyQuoted = /^["'].*["']$/.test(trimmed) || /^\(.*\)$/.test(trimmed) || /^\[.*\]$/.test(trimmed);
+
+                            if (hasSpecialChars && !alreadyQuoted && trimmed.length > 0) {
+                                // Extract indentation and node content
+                                const indentMatch = line.match(/^(\s*)/);
+                                const indent = indentMatch ? indentMatch[1] : '';
+                                const content = trimmed;
+
+                                // Wrap in quotes and preserve the original brackets for styling
+                                // Replace inner parentheses that are part of the content with quoted version
+                                processedLines.push(indent + '"' + content.replace(/"/g, '\\"') + '"');
+                            } else {
+                                processedLines.push(line);
                             }
                         }
-                        sanitized = lines.join('\n');
+
+                        sanitized = processedLines.join('\n');
                     }
-                    
+
                     return sanitized;
                 };
 

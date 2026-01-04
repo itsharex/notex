@@ -569,10 +569,16 @@ func (s *Server) handleTransform(c *gin.Context) {
 	}
 
 	// Save as note
+	// For infograph type, don't save text content (only show the image)
+	noteContent := response.Content
+	if req.Type == "infograph" {
+		noteContent = "" // Clear content for infograph, only show image
+	}
+
 	note := &Note{
 		NotebookID: notebookID,
 		Title:      getTitleForType(req.Type),
-		Content:    response.Content,
+		Content:    noteContent,
 		Type:       req.Type,
 		SourceIDs:  req.SourceIDs,
 		Metadata:   metadata,

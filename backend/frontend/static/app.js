@@ -414,8 +414,8 @@ class OpenNotebook {
         document.getElementById('currentNotebookName').textContent = this.currentNotebook.name;
         this.switchView('workspace');
         
-        // Reset tab to chat and remove any existing note view
-        this.switchPanelTab('chat');
+        // Reset tab to notes list and remove any existing note view
+        this.showNotesListTab();
         const noteView = document.querySelector('.note-view-container');
         if (noteView) noteView.remove();
 

@@ -2631,3 +2631,51 @@ body {
 .note-item.selected .note-title {
     color: var(--accent-primary);
 }
+
+/* Responsive - Small Screen */
+@media (max-width: 768px) {
+    /* Reduce panel min-width to fit all panels */
+    .panel-center {
+        min-width: 0;
+    }
+
+    /* Studio buttons: icon and text on same row */
+    .main-grid.right-collapsed .transform-card {
+        flex-direction: row !important;
+        width: auto !important;
+        height: auto !important;
+        padding: var(--space-sm) var(--space-md) !important;
+        gap: var(--space-sm) !important;
+    }
+
+    .main-grid.right-collapsed .transform-card span {
+        display: block !important;
+        font-size: 0.7rem;
+    }
+
+    /* Note cards: hide preview, only show type */
+    .compact-note-card .note-preview {
+        display: none;
+    }
+
+    .compact-note-card {
+        padding: var(--space-sm);
+    }
+
+    /* Adjust grid to ensure all panels are visible on small screens */
+    .main-grid {
+        grid-template-columns: 180px 4px 1fr 4px 280px !important;
+    }
+
+    .main-grid.left-collapsed {
+        grid-template-columns: 54px 0px 1fr 4px 280px !important;
+    }
+
+    .main-grid.right-collapsed {
+        grid-template-columns: 180px 4px 1fr 0px 54px !important;
+    }
+
+    .main-grid.left-collapsed.right-collapsed {
+        grid-template-columns: 54px 0px 1fr 0px 54px !important;
+    }
+}

@@ -68,7 +68,7 @@ func NewServer(cfg Config) (*Server, error) {
 		sources, _ := store.ListSources(ctx, nb.ID)
 		for _, src := range sources {
 			if src.Content != "" {
-				if err := vectorStore.IngestText(ctx, src.Name, src.Content); err != nil {
+				if _, err := vectorStore.IngestText(ctx, src.Name, src.Content); err != nil {
 					golog.Errorf("failed to restore source %s: %v", src.Name, err)
 				}
 			}
@@ -310,17 +310,17 @@ func (s *Server) handleAddSource(c *gin.Context) {
 		golog.Infof("URL content fetched successfully, size: %d bytes", len(content))
 	}
 
-	golog.Infof("create source: %v", source.Type)
 	if err := s.store.CreateSource(ctx, source); err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to create source"})
 		return
 	}
 
 	// Ingest into vector store (synchronous for immediate availability)
-	golog.Infof("ingesting text: %d bytes", len(source.Content))
 	if source.Content != "" {
-		if err := s.vectorStore.IngestText(ctx, source.Name, source.Content); err != nil {
+		if chunkCount, err := s.vectorStore.IngestText(ctx, source.Name, source.Content); err != nil {
 			golog.Errorf("failed to ingest text: %v", err)
+		} else {
+			s.store.UpdateSourceChunkCount(ctx, source.ID, chunkCount)
 		}
 	}
 
@@ -408,7 +408,7 @@ func (s *Server) handleUpload(c *gin.Context) {
 	totalDocsBefore := stats.TotalDocuments
 
 	if source.Content != "" {
-		if err := s.vectorStore.IngestText(ctx, source.Name, source.Content); err != nil {
+		if _, err := s.vectorStore.IngestText(ctx, source.Name, source.Content); err != nil {
 			golog.Errorf("failed to ingest document: %v", err)
 		} else {
 			// Get updated stats to calculate chunk count
@@ -621,8 +621,10 @@ func (s *Server) handleTransform(c *gin.Context) {
 			golog.Errorf("failed to create insight source: %v", err)
 		} else {
 			// Ingest into vector store for future reference
-			if err := s.vectorStore.IngestText(ctx, insightSource.Name, insightSource.Content); err != nil {
+			if chunkCount, err := s.vectorStore.IngestText(ctx, insightSource.Name, insightSource.Content); err != nil {
 				golog.Errorf("failed to ingest insight text: %v", err)
+			} else {
+				s.store.UpdateSourceChunkCount(ctx, insightSource.ID, chunkCount)
 			}
 		}
 	}

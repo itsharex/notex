@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/kataras/golog"
 	"github.com/tmc/langchaingo/schema"
 )
 
@@ -50,7 +51,7 @@ func (vs *VectorStore) IngestDocuments(ctx context.Context, paths []string) erro
 		}
 
 		fmt.Printf("[VectorStore] File loaded, size: %d bytes\n", len(content))
-		if err := vs.IngestText(ctx, filepath.Base(path), content); err != nil {
+		if _, err := vs.IngestText(ctx, filepath.Base(path), content); err != nil {
 			return err
 		}
 	}
@@ -75,7 +76,7 @@ func (vs *VectorStore) ExtractDocument(ctx context.Context, path string) (string
 }
 
 // IngestText ingests raw text content
-func (vs *VectorStore) IngestText(ctx context.Context, sourceName, content string) error {
+func (vs *VectorStore) IngestText(ctx context.Context, sourceName, content string) (int, error) {
 	// Split content into chunks
 	chunks := vs.splitText(content, vs.cfg.ChunkSize, vs.cfg.ChunkOverlap)
 
@@ -94,8 +95,8 @@ func (vs *VectorStore) IngestText(ctx context.Context, sourceName, content strin
 		vs.docs = append(vs.docs, doc)
 	}
 
-	fmt.Printf("[VectorStore] Ingested %d chunks from source '%s' (total docs: %d)\n", len(chunks), sourceName, len(vs.docs))
-	return nil
+	golog.Infof("[VectorStore] Ingested %d chunks from source '%s' (total docs: %d)\n", len(chunks), sourceName, len(vs.docs))
+	return len(chunks), nil
 }
 
 // splitText splits text into chunks

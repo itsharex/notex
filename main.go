@@ -159,7 +159,7 @@ func runIngestMode(ctx context.Context, cfg backend.Config, filePath, notebookNa
 	}
 
 	// Ingest document
-	if err := vectorStore.IngestText(ctx, source.Name, content); err != nil {
+	if _, err := vectorStore.IngestText(ctx, source.Name, content); err != nil {
 		golog.Fatalf("ingestion failed: %v", err)
 	}
 

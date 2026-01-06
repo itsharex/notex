@@ -106,6 +106,7 @@ func (s *Server) setupRoutes() {
 		notebooks := api.Group("/notebooks")
 		{
 			notebooks.GET("", s.handleListNotebooks)
+			notebooks.GET("/stats", s.handleListNotebooksWithStats)
 			notebooks.POST("", s.handleCreateNotebook)
 			notebooks.GET("/:id", s.handleGetNotebook)
 			notebooks.PUT("/:id", s.handleUpdateNotebook)
@@ -204,6 +205,16 @@ func (s *Server) handleListNotebooks(c *gin.Context) {
 	notebooks, err := s.store.ListNotebooks(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to list notebooks"})
+		return
+	}
+	c.JSON(http.StatusOK, notebooks)
+}
+
+func (s *Server) handleListNotebooksWithStats(c *gin.Context) {
+	ctx := context.Background()
+	notebooks, err := s.store.ListNotebooksWithStats(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to list notebooks with stats"})
 		return
 	}
 	c.JSON(http.StatusOK, notebooks)

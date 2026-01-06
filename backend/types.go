@@ -43,6 +43,18 @@ type Notebook struct {
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// NotebookWithStats represents a notebook with statistics
+type NotebookWithStats struct {
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description,omitempty"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	SourceCount int                    `json:"source_count"`
+	NoteCount   int                    `json:"note_count"`
+}
+
 // ChatMessage represents a chat message
 type ChatMessage struct {
 	ID         string                 `json:"id"`

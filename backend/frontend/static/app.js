@@ -378,8 +378,8 @@ class OpenNotebook {
                 this.updateFooter();
             }
 
-            // 从服务器获取最新数据
-            const notebooks = await this.api('/notebooks');
+            // 从服务器获取最新数据（包含统计信息）
+            const notebooks = await this.api('/notebooks/stats');
             this.notebooks = notebooks;
 
             // 更新缓存
@@ -424,8 +424,10 @@ class OpenNotebook {
             card.dataset.id = nb.id;
             card.querySelector('.notebook-card-name').textContent = nb.name;
             card.querySelector('.notebook-card-desc').textContent = nb.description || '暂无描述';
-            
-            this.loadNotebookCardCounts(nb.id, card);
+
+            // 直接使用从 API 获取的统计信息
+            card.querySelector('.stat-sources').textContent = `${nb.source_count || 0} 来源`;
+            card.querySelector('.stat-notes').textContent = `${nb.note_count || 0} 笔记`;
 
             card.addEventListener('click', (e) => {
                 if (!e.target.closest('.btn-delete-card')) {
@@ -450,20 +452,6 @@ class OpenNotebook {
 
             container.appendChild(clone);
         });
-    }
-
-    async loadNotebookCardCounts(notebookId, element) {
-        try {
-            const [sources, notes] = await Promise.all([
-                this.api(`/notebooks/${notebookId}/sources`),
-                this.api(`/notebooks/${notebookId}/notes`)
-            ]);
-
-            element.querySelector('.stat-sources').textContent = `${sources.length} 来源`;
-            element.querySelector('.stat-notes').textContent = `${notes.length} 笔记`;
-        } catch (error) {
-            // 忽略错误
-        }
     }
 
     switchView(view) {

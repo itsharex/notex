@@ -247,6 +247,48 @@ func (s *Store) DeleteNotebook(ctx context.Context, id string) error {
 	return err
 }
 
+// ListNotebooksWithStats retrieves all notebooks with their source and note counts
+func (s *Store) ListNotebooksWithStats(ctx context.Context) ([]NotebookWithStats, error) {
+	query := `
+		SELECT
+			n.id, n.name, n.description, n.created_at, n.updated_at, n.metadata,
+			COALESCE((SELECT COUNT(*) FROM sources WHERE notebook_id = n.id), 0) as source_count,
+			COALESCE((SELECT COUNT(*) FROM notes WHERE notebook_id = n.id), 0) as note_count
+		FROM notebooks n
+		ORDER BY n.updated_at DESC
+	`
+
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	notebooks := make([]NotebookWithStats, 0)
+	for rows.Next() {
+		var nb NotebookWithStats
+		var metadataJSON string
+		var createdAt, updatedAt int64
+
+		if err := rows.Scan(&nb.ID, &nb.Name, &nb.Description, &createdAt, &updatedAt, &metadataJSON, &nb.SourceCount, &nb.NoteCount); err != nil {
+			return nil, err
+		}
+
+		nb.CreatedAt = time.Unix(createdAt, 0)
+		nb.UpdatedAt = time.Unix(updatedAt, 0)
+
+		if metadataJSON != "" {
+			json.Unmarshal([]byte(metadataJSON), &nb.Metadata)
+		} else {
+			nb.Metadata = make(map[string]interface{})
+		}
+
+		notebooks = append(notebooks, nb)
+	}
+
+	return notebooks, nil
+}
+
 // Source operations
 
 // CreateSource creates a new source

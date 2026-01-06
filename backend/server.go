@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -22,9 +23,12 @@ var frontendFS embed.FS
 type Server struct {
 	cfg         Config
 	vectorStore *VectorStore
-	store       *Store
+	store       *CachedStore
 	agent       *Agent
 	http        *gin.Engine
+	// Track which notebooks have been loaded into vector store
+	loadedNotebooks map[string]bool
+	vectorMutex     sync.RWMutex
 }
 
 // NewServer creates a new server
@@ -36,10 +40,13 @@ func NewServer(cfg Config) (*Server, error) {
 	}
 
 	// Initialize store
-	store, err := NewStore(cfg)
+	baseStore, err := NewStore(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create store: %w", err)
 	}
+
+	// Wrap store with cache (5 minute TTL)
+	store := NewCachedStore(baseStore, 5*time.Minute)
 
 	// Initialize agent
 	agent, err := NewAgent(cfg, vectorStore)
@@ -53,29 +60,16 @@ func NewServer(cfg Config) (*Server, error) {
 	router.Use(gin.Recovery(), gin.Logger())
 
 	s := &Server{
-		cfg:         cfg,
-		vectorStore: vectorStore,
-		store:       store,
-		agent:       agent,
-		http:        router,
+		cfg:             cfg,
+		vectorStore:     vectorStore,
+		store:           store,
+		agent:           agent,
+		http:            router,
+		loadedNotebooks: make(map[string]bool),
 	}
 
-	// Restore vector store from persistent storage
-	ctx := context.Background()
-	notebooks, _ := store.ListNotebooks(ctx)
-	golog.Infof("🔄 restoring vector index for %d notebooks...", len(notebooks))
-	for _, nb := range notebooks {
-		sources, _ := store.ListSources(ctx, nb.ID)
-		for _, src := range sources {
-			if src.Content != "" {
-				if _, err := vectorStore.IngestText(ctx, src.Name, src.Content); err != nil {
-					golog.Errorf("failed to restore source %s: %v", src.Name, err)
-				}
-			}
-		}
-	}
-	stats, _ := vectorStore.GetStats(ctx)
-	golog.Infof("✅ vector index restored: %d documents", stats.TotalDocuments)
+	// 延迟加载向量索引，不在启动时加载
+	golog.Infof("✅ server initialized (vector index will load on demand)")
 
 	s.setupRoutes()
 
@@ -143,6 +137,38 @@ func (s *Server) setupRoutes() {
 		// Upload endpoint
 		api.POST("/upload", s.handleUpload)
 	}
+}
+
+// loadNotebookVectorIndex loads a notebook's sources into the vector store on demand
+func (s *Server) loadNotebookVectorIndex(ctx context.Context, notebookID string) error {
+	s.vectorMutex.Lock()
+	defer s.vectorMutex.Unlock()
+
+	// Check if already loaded
+	if s.loadedNotebooks[notebookID] {
+		return nil
+	}
+
+	golog.Infof("🔄 loading vector index for notebook %s...", notebookID)
+
+	sources, err := s.store.Store.ListSources(ctx, notebookID)
+	if err != nil {
+		return fmt.Errorf("failed to list sources: %w", err)
+	}
+
+	for _, src := range sources {
+		if src.Content != "" {
+			if _, err := s.vectorStore.IngestText(ctx, src.Name, src.Content); err != nil {
+				golog.Errorf("failed to load source %s: %v", src.Name, err)
+			}
+		}
+	}
+
+	s.loadedNotebooks[notebookID] = true
+	stats, _ := s.vectorStore.GetStats(ctx)
+	golog.Infof("✅ notebook %s loaded into vector store (%d total documents)", notebookID, stats.TotalDocuments)
+
+	return nil
 }
 
 // Start starts the server
@@ -491,6 +517,11 @@ func (s *Server) handleTransform(c *gin.Context) {
 	ctx := context.Background()
 	notebookID := c.Param("id")
 
+	// 按需加载向量索引
+	if err := s.loadNotebookVectorIndex(ctx, notebookID); err != nil {
+		golog.Errorf("failed to load vector index: %v", err)
+	}
+
 	var req TransformationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -719,6 +750,11 @@ func (s *Server) handleSendMessage(c *gin.Context) {
 	notebookID := c.Param("id")
 	sessionID := c.Param("sessionId")
 
+	// 按需加载向量索引
+	if err := s.loadNotebookVectorIndex(ctx, notebookID); err != nil {
+		golog.Errorf("failed to load vector index: %v", err)
+	}
+
 	var req ChatRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -763,6 +799,11 @@ func (s *Server) handleSendMessage(c *gin.Context) {
 func (s *Server) handleChat(c *gin.Context) {
 	ctx := context.Background()
 	notebookID := c.Param("id")
+
+	// 按需加载向量索引
+	if err := s.loadNotebookVectorIndex(ctx, notebookID); err != nil {
+		golog.Errorf("failed to load vector index: %v", err)
+	}
 
 	var req ChatRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

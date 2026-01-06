@@ -1,3 +1,126 @@
+// LocalCache - 本地缓存管理类
+class LocalCache {
+    constructor(ttlMinutes = 5) {
+        this.ttl = ttlMinutes * 60 * 1000; // 转换为毫秒
+        this.prefix = 'notex_cache_';
+    }
+
+    // 生成缓存键
+    _makeKey(key) {
+        return `${this.prefix}${key}`;
+    }
+
+    // 获取缓存
+    get(key) {
+        try {
+            const fullKey = this._makeKey(key);
+            const item = localStorage.getItem(fullKey);
+            if (!item) return null;
+
+            const data = JSON.parse(item);
+
+            // 检查是否过期
+            if (Date.now() > data.expiresAt) {
+                localStorage.removeItem(fullKey);
+                return null;
+            }
+
+            return data.value;
+        } catch (e) {
+            console.warn('Cache get error:', e);
+            return null;
+        }
+    }
+
+    // 设置缓存
+    set(key, value, customTTL = null) {
+        try {
+            const fullKey = this._makeKey(key);
+            const ttl = customTTL || this.ttl;
+            const data = {
+                value,
+                expiresAt: Date.now() + ttl
+            };
+            localStorage.setItem(fullKey, JSON.stringify(data));
+        } catch (e) {
+            console.warn('Cache set error:', e);
+        }
+    }
+
+    // 删除缓存
+    delete(key) {
+        try {
+            const fullKey = this._makeKey(key);
+            localStorage.removeItem(fullKey);
+        } catch (e) {
+            console.warn('Cache delete error:', e);
+        }
+    }
+
+    // 按前缀删除缓存
+    deletePattern(pattern) {
+        try {
+            const prefix = this._makeKey(pattern);
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(prefix)) {
+                    keys.push(key);
+                }
+            }
+            keys.forEach(key => localStorage.removeItem(key));
+        } catch (e) {
+            console.warn('Cache deletePattern error:', e);
+        }
+    }
+
+    // 清空所有缓存
+    clear() {
+        try {
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(this.prefix)) {
+                    keys.push(key);
+                }
+            }
+            keys.forEach(key => localStorage.removeItem(key));
+        } catch (e) {
+            console.warn('Cache clear error:', e);
+        }
+    }
+
+    // 清理过期缓存
+    cleanup() {
+        try {
+            const now = Date.now();
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(this.prefix)) {
+                    keys.push(key);
+                }
+            }
+            keys.forEach(key => {
+                try {
+                    const item = localStorage.getItem(key);
+                    if (item) {
+                        const data = JSON.parse(item);
+                        if (now > data.expiresAt) {
+                            localStorage.removeItem(key);
+                        }
+                    }
+                } catch (e) {
+                    // 忽略解析错误，删除无效条目
+                    localStorage.removeItem(key);
+                }
+            });
+        } catch (e) {
+            console.warn('Cache cleanup error:', e);
+        }
+    }
+}
+
 class OpenNotebook {
     constructor() {
         this.notebooks = [];
@@ -7,6 +130,9 @@ class OpenNotebook {
         this.config = {
             allowDelete: true
         };
+
+        // 初始化本地缓存 (5分钟TTL)
+        this.cache = new LocalCache(5);
 
         // Note type name mapping
         this.noteTypeNameMap = {
@@ -32,6 +158,10 @@ class OpenNotebook {
         this.bindEvents();
         this.initResizers();
         this.switchView('landing');
+
+        // 清理过期缓存
+        this.cache.cleanup();
+
         await this.loadNotebooks();
         this.applyConfig();
     }
@@ -240,7 +370,21 @@ class OpenNotebook {
     // 笔记本方法
     async loadNotebooks() {
         try {
-            this.notebooks = await this.api('/notebooks');
+            // 先尝试从缓存获取
+            const cached = this.cache.get('notebooks');
+            if (cached) {
+                this.notebooks = cached;
+                this.renderNotebooks();
+                this.updateFooter();
+            }
+
+            // 从服务器获取最新数据
+            const notebooks = await this.api('/notebooks');
+            this.notebooks = notebooks;
+
+            // 更新缓存
+            this.cache.set('notebooks', notebooks);
+
             this.renderNotebooks();
             this.updateFooter();
         } catch (error) {
@@ -528,6 +672,9 @@ class OpenNotebook {
                 }),
             });
 
+            // 使缓存失效
+            this.cache.delete('notebooks');
+
             this.notebooks.push(notebook);
             this.renderNotebooks();
             this.selectNotebook(notebook.id);
@@ -543,6 +690,13 @@ class OpenNotebook {
     async deleteNotebook(id) {
         try {
             await this.api(`/notebooks/${id}`, { method: 'DELETE' });
+
+            // 使缓存失效
+            this.cache.delete('notebooks');
+            this.cache.deletePattern(`sources_${id}`);
+            this.cache.deletePattern(`notes_${id}`);
+            this.cache.deletePattern(`chat_${id}`);
+
             this.notebooks = this.notebooks.filter(nb => nb.id !== id);
 
             if (this.currentNotebook?.id === id) {
@@ -609,7 +763,15 @@ class OpenNotebook {
         const template = document.getElementById('sourceTemplate');
 
         try {
+            // 先尝试从缓存获取
+            const cacheKey = `sources_${this.currentNotebook.id}`;
+            const cached = this.cache.get(cacheKey);
+
+            // 从服务器获取最新数据
             const sources = await this.api(`/notebooks/${this.currentNotebook.id}/sources`);
+
+            // 更新缓存
+            this.cache.set(cacheKey, sources);
 
             if (sources.length === 0) {
                 this.clearContentAreas();
@@ -795,7 +957,15 @@ class OpenNotebook {
         const countHeader = document.querySelector('.section-notes .panel-title');
 
         try {
+            // 先尝试从缓存获取
+            const cacheKey = `notes_${this.currentNotebook.id}`;
+            const cached = this.cache.get(cacheKey);
+
+            // 从服务器获取最新数据
             const notes = await this.api(`/notebooks/${this.currentNotebook.id}/notes`);
+
+            // 更新缓存
+            this.cache.set(cacheKey, notes);
             
             if (countHeader) {
                 countHeader.textContent = `笔记 (${notes.length})`;
